@@ -100,7 +100,9 @@ flowchart LR
 
 **Pas d'exception comme flux de contrôle.** `decodeFrame` ne lève jamais : toute trame malformée produit une valeur `{ ok: false, reason }` au lieu d'une exception, ce qui garantit directement l'exigence "une trame invalide est comptée, jamais bloquante" sans `try/catch` défensif dans l'appelant : https://github.com/abdulrahman-adam/PulseHub/blob/e4f553ee3c17c0603dba441b0c33c352eac49f28/src/hub/decoder.ts#L14-L16
 
-**Point d'entrée unique (composition root).** [index.ts](src/index.ts) est le seul fichier qui démarre réellement quelque chose (3 lignes : câble `startHubServer()` et `startDashboardLoop()`) ; tous les autres modules n'exportent que des fonctions/classes pures qui ne s'exécutent pas à l'import — c'est ce qui permet aux tests d'importer `UdpReceiver`, `Summary`, `Sequencer`, etc. sans jamais ouvrir un vrai socket ni démarrer une boucle.
+**Point d'entrée unique (composition root).** [index.ts](src/index.ts) est le seul fichier qui démarre réellement quelque chose (3 lignes : câble `startHubServer()` et `startDashboardLoop()`) ; tous les autres modules n'exportent que des fonctions/classes pures qui ne s'exécutent pas à l'import — c'est ce qui permet aux tests d'importer `UdpReceiver`, `Summary`, `Sequencer`, etc. sans jamais ouvrir un vrai socket ni démarrer une boucle : https://github.com/abdulrahman-adam/PulseHub/blob/e4f553ee3c17c0603dba441b0c33c352eac49f28/src/index.ts#L1-L6
+
+**Open/Closed (SOLID).** `decodeFrame` lit les mesures génériquement (`metricId` + `value`, dans une boucle) sans connaître la liste des types de métriques existants. Ajouter demain un nouveau `MetricId` (ex. humidité) dans `protocol/frame.ts` ne demande donc **aucune modification** de cette boucle : le décodeur est ouvert à l'extension, fermé à la modification — https://github.com/abdulrahman-adam/PulseHub/blob/e4f553ee3c17c0603dba441b0c33c352eac49f28/src/hub/decoder.ts#L59-L66
 
 ## 5. Choix et compromis
 
