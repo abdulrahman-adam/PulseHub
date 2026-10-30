@@ -1,0 +1,26 @@
+{
+  "name": "pulsehub",
+  "version": "1.0.0",
+  "description": "PulseHub - hub central de telemetrie UDP pour equipements evenementiels",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "hub": "ts-node src/index.ts",
+    "simulator": "ts-node src/simulator/simulator.ts",
+    "test": "jest",
+    "lint": "eslint \"src/**/*.ts\" \"tests/**/*.ts\""
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.14",
+    "@types/node": "^20.14.9",
+    "@typescript-eslint/eslint-plugin": "^7.16.1",
+    "@typescript-eslint/parser": "^7.16.1",
+    "eslint": "^8.57.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.4",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.5.4"
+  },
+  "dependencies": {}
+}
