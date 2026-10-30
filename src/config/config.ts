@@ -23,6 +23,8 @@ export interface SimulatorConfig {
 export interface HubConfig {
   host: string;
   port: number;
+  /** Duree sans trame recue au-dela de laquelle un appareil est juge hors ligne. */
+  offlineTimeoutMs: number;
 }
 
 function parseArgs(argv: string[]): Map<string, string> {
@@ -81,5 +83,6 @@ export function loadHubConfig(argv: string[] = process.argv.slice(2)): HubConfig
   return {
     host: stringOption(args, 'host', 'PULSEHUB_HUB_HOST', '0.0.0.0'),
     port: numberOption(args, 'port', 'PULSEHUB_PORT', 9000),
+    offlineTimeoutMs: numberOption(args, 'offline-timeout-ms', 'PULSEHUB_OFFLINE_TIMEOUT_MS', 2000),
   };
 }

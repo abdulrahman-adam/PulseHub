@@ -1,31 +1,32 @@
 import { UdpReceiver } from './udp-receiver';
 import { Sequencer } from './sequencer';
+import { Summary } from './summary';
 import { loadHubConfig } from '../config/config';
 
 const STATS_INTERVAL_MS = 1000;
 
+export interface HubHandle {
+  receiver: UdpReceiver;
+  summary: Summary;
+}
+
 /**
  * Demarre le hub : ecoute UDP, decodage/validation, sequencement par
- * appareil (doublons/retards ecartes, pertes comptees). La synthese
- * complete de l'etat de la flotte sera branchee dans une etape suivante.
+ * appareil, puis synthese de l'etat de la flotte (sante de reception +
+ * etat par appareil). La synthese est exposee pour etre affichee
+ * (visualisation branchee dans une etape suivante).
  */
-export function startHubServer(): UdpReceiver {
+export function startHubServer(): HubHandle {
   const config = loadHubConfig();
   const sequencer = new Sequencer();
-
-  let accepted = 0;
-  let discarded = 0;
-  let lostTotal = 0;
+  const summary = new Summary(config.offlineTimeoutMs);
 
   const receiver = new UdpReceiver(
     (frame) => {
       const result = sequencer.process(frame.deviceId, frame.seq);
-      if (!result.accepted) {
-        discarded++;
-        return;
+      if (result.accepted) {
+        summary.recordAcceptedFrame(frame, result.lost);
       }
-      accepted++;
-      lostTotal += result.lost;
     },
     (reason, rinfo) => {
       console.warn(`[hub] trame invalide de ${rinfo.address}:${rinfo.port} - ${reason}`);
@@ -43,9 +44,11 @@ export function startHubServer(): UdpReceiver {
     });
 
   const statsTimer = setInterval(() => {
-    const stats = receiver.getStats();
+    const snapshot = summary.snapshot(receiver.getStats());
+    const online = snapshot.devices.filter((d) => d.status === 'online').length;
     console.log(
-      `[hub] recues=${stats.received} invalides=${stats.invalid} acceptees=${accepted} ecartees(doublon/retard)=${discarded} pertes_seq=${lostTotal}`
+      `[hub] recues=${snapshot.reception.received} invalides=${snapshot.reception.invalid} ` +
+        `pertes_seq=${snapshot.reception.lost} appareils=${snapshot.devices.length} en_ligne=${online}`
     );
   }, STATS_INTERVAL_MS);
 
@@ -55,5 +58,5 @@ export function startHubServer(): UdpReceiver {
     process.exit(0);
   });
 
-  return receiver;
+  return { receiver, summary };
 }
