@@ -20,6 +20,11 @@ export interface SimulatorConfig {
   faults: SimulatorFaultConfig;
 }
 
+export interface HubConfig {
+  host: string;
+  port: number;
+}
+
 function parseArgs(argv: string[]): Map<string, string> {
   const result = new Map<string, string>();
   for (const arg of argv) {
@@ -67,5 +72,14 @@ export function loadSimulatorConfig(argv: string[] = process.argv.slice(2)): Sim
       anomalyRate: numberOption(args, 'anomaly-rate', 'PULSEHUB_FAULT_ANOMALY_RATE', 0),
       deviceStopRate: numberOption(args, 'device-stop-rate', 'PULSEHUB_FAULT_DEVICE_STOP_RATE', 0),
     },
+  };
+}
+
+export function loadHubConfig(argv: string[] = process.argv.slice(2)): HubConfig {
+  const args = parseArgs(argv);
+
+  return {
+    host: stringOption(args, 'host', 'PULSEHUB_HUB_HOST', '0.0.0.0'),
+    port: numberOption(args, 'port', 'PULSEHUB_PORT', 9000),
   };
 }
