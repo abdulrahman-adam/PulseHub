@@ -8,6 +8,7 @@ export interface DeviceState {
   voltageV: number | null;
   currentA: number | null;
   status: DeviceStatus;
+  temperatureAnomalous: boolean;
   lastSeenAt: number;
   lastSeq: number;
 }
@@ -47,7 +48,10 @@ export class Summary {
   private readonly devices = new Map<number, DeviceState>();
   private lostTotal = 0;
 
-  constructor(private readonly offlineTimeoutMs: number) {}
+  constructor(
+    private readonly offlineTimeoutMs: number,
+    private readonly anomalyTemperatureC: number
+  ) {}
 
   /** A appeler pour chaque trame acceptee par le sequenceur. */
   recordAcceptedFrame(frame: PulseHubFrame, lost: number, now: number = Date.now()): void {
@@ -60,6 +64,7 @@ export class Summary {
       voltageV: extractMeasure(frame.measures, MetricId.VOLTAGE) ?? existing?.voltageV ?? null,
       currentA: extractMeasure(frame.measures, MetricId.CURRENT) ?? existing?.currentA ?? null,
       status: 'online',
+      temperatureAnomalous: false,
       lastSeenAt: now,
       lastSeq: frame.seq,
     });
@@ -70,6 +75,7 @@ export class Summary {
     const devices = Array.from(this.devices.values()).map((device) => ({
       ...device,
       status: this.computeStatus(device.lastSeenAt, now),
+      temperatureAnomalous: device.temperatureC !== null && device.temperatureC > this.anomalyTemperatureC,
     }));
 
     return {

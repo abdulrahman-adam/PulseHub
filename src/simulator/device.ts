@@ -11,6 +11,9 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
+/** Fraction de l'ecart a la valeur de base corrigee a chaque tick (retour progressif a la normale). */
+const MEAN_REVERSION_RATE = 0.08;
+
 /**
  * Represente un appareil simule (alimentation, controleur LED ou ampli).
  * Genere des mesures plausibles avec une legere derive aleatoire, et tient
@@ -24,6 +27,10 @@ export class SimulatedDevice {
   private readonly startedAt = Date.now();
   private stopped = false;
 
+  private readonly baseTemperatureC: number;
+  private readonly baseVoltageMv: number;
+  private readonly baseCurrentMa: number;
+
   private temperatureC: number;
   private voltageMv: number;
   private currentMa: number;
@@ -31,9 +38,13 @@ export class SimulatedDevice {
   constructor(deviceId: number) {
     this.deviceId = deviceId;
     // valeurs de base variees par appareil, pour un affichage moins uniforme
-    this.temperatureC = 22 + (deviceId % 8);
-    this.voltageMv = 11500 + (deviceId % 5) * 200; // alimentation basse tension ~12V DC
-    this.currentMa = 300 + (deviceId % 10) * 50;
+    this.baseTemperatureC = 22 + (deviceId % 8);
+    this.baseVoltageMv = 11500 + (deviceId % 5) * 200; // alimentation basse tension ~12V DC
+    this.baseCurrentMa = 300 + (deviceId % 10) * 50;
+
+    this.temperatureC = this.baseTemperatureC;
+    this.voltageMv = this.baseVoltageMv;
+    this.currentMa = this.baseCurrentMa;
   }
 
   isStopped(): boolean {
@@ -68,12 +79,15 @@ export class SimulatedDevice {
   }
 
   private drift(anomalous: boolean): void {
-    this.temperatureC += (Math.random() - 0.5) * 0.4;
-    this.voltageMv += (Math.random() - 0.5) * 40;
-    this.currentMa += (Math.random() - 0.5) * 20;
+    // marche aleatoire avec rappel progressif vers la valeur de base, pour que
+    // les mesures restent plausibles sur une longue session au lieu de derailler
+    this.temperatureC += (this.baseTemperatureC - this.temperatureC) * MEAN_REVERSION_RATE + (Math.random() - 0.5) * 0.4;
+    this.voltageMv += (this.baseVoltageMv - this.voltageMv) * MEAN_REVERSION_RATE + (Math.random() - 0.5) * 40;
+    this.currentMa += (this.baseCurrentMa - this.currentMa) * MEAN_REVERSION_RATE + (Math.random() - 0.5) * 20;
 
     if (anomalous) {
-      // surchauffe simulee : pic bien au-dessus du seuil d'alerte habituel (70 C)
+      // surchauffe simulee : pic bien au-dessus du seuil d'alerte habituel (70 C),
+      // qui redescendra progressivement vers la base via le rappel ci-dessus
       this.temperatureC = 75 + Math.random() * 15;
     }
 

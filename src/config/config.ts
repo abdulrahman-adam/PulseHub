@@ -25,6 +25,10 @@ export interface HubConfig {
   port: number;
   /** Duree sans trame recue au-dela de laquelle un appareil est juge hors ligne. */
   offlineTimeoutMs: number;
+  /** Seuil de temperature (en C) au-dela duquel un appareil est signale en anomalie. */
+  anomalyTemperatureC: number;
+  /** Intervalle de rafraichissement du tableau de bord. */
+  dashboardRefreshMs: number;
 }
 
 function parseArgs(argv: string[]): Map<string, string> {
@@ -84,5 +88,7 @@ export function loadHubConfig(argv: string[] = process.argv.slice(2)): HubConfig
     host: stringOption(args, 'host', 'PULSEHUB_HUB_HOST', '0.0.0.0'),
     port: numberOption(args, 'port', 'PULSEHUB_PORT', 9000),
     offlineTimeoutMs: numberOption(args, 'offline-timeout-ms', 'PULSEHUB_OFFLINE_TIMEOUT_MS', 2000),
+    anomalyTemperatureC: numberOption(args, 'anomaly-temperature-c', 'PULSEHUB_ANOMALY_TEMPERATURE_C', 70),
+    dashboardRefreshMs: numberOption(args, 'dashboard-refresh-ms', 'PULSEHUB_DASHBOARD_REFRESH_MS', 250),
   };
 }

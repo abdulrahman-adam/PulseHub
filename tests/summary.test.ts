@@ -1,20 +1,22 @@
 import { Summary } from '../src/hub/summary';
 import { FrameType, MetricId, PulseHubFrame } from '../src/protocol/frame';
 
+const ANOMALY_THRESHOLD_C = 70;
+
 function telemetryFrame(deviceId: number, seq: number, measures: PulseHubFrame['measures']): PulseHubFrame {
   return { version: 1, type: FrameType.TELEMETRY, deviceId, seq, uptimeMs: 0, measures };
 }
 
 describe('Summary', () => {
   it('ne contient aucun appareil avant la premiere trame', () => {
-    const summary = new Summary(2000);
+    const summary = new Summary(2000, ANOMALY_THRESHOLD_C);
     const snapshot = summary.snapshot({ received: 0, invalid: 0 });
     expect(snapshot.devices).toEqual([]);
     expect(snapshot.reception).toEqual({ received: 0, invalid: 0, lost: 0 });
   });
 
   it('affiche identifiant, temperature, tension, courant et statut en ligne pour un appareil', () => {
-    const summary = new Summary(2000);
+    const summary = new Summary(2000, ANOMALY_THRESHOLD_C);
     const now = 1_000_000;
 
     summary.recordAcceptedFrame(
@@ -36,6 +38,7 @@ describe('Summary', () => {
         voltageV: 12,
         currentA: 1.5,
         status: 'online',
+        temperatureAnomalous: false,
         lastSeenAt: now,
         lastSeq: 1,
       },
@@ -43,7 +46,7 @@ describe('Summary', () => {
   });
 
   it("conserve les dernieres valeurs connues quand une trame n'apporte pas de mesures (ex. HEARTBEAT)", () => {
-    const summary = new Summary(2000);
+    const summary = new Summary(2000, ANOMALY_THRESHOLD_C);
     const t0 = 1_000_000;
 
     summary.recordAcceptedFrame(
@@ -61,8 +64,8 @@ describe('Summary', () => {
     expect(device.lastSeq).toBe(2);
   });
 
-  it("passe un appareil hors ligne quand le timeout est depasse", () => {
-    const summary = new Summary(2000);
+  it('passe un appareil hors ligne quand le timeout est depasse', () => {
+    const summary = new Summary(2000, ANOMALY_THRESHOLD_C);
     const t0 = 1_000_000;
 
     summary.recordAcceptedFrame(telemetryFrame(7, 1, []), 0, t0);
@@ -71,8 +74,28 @@ describe('Summary', () => {
     expect(summary.snapshot({ received: 1, invalid: 0 }, t0 + 2001).devices[0].status).toBe('offline');
   });
 
+  it('signale une temperature anormale au-dessus du seuil configure', () => {
+    const summary = new Summary(2000, ANOMALY_THRESHOLD_C);
+    const t0 = 1_000_000;
+
+    summary.recordAcceptedFrame(
+      telemetryFrame(1, 1, [{ metricId: MetricId.TEMPERATURE, value: 6999 }]), // 69.99 C
+      0,
+      t0
+    );
+    summary.recordAcceptedFrame(
+      telemetryFrame(2, 1, [{ metricId: MetricId.TEMPERATURE, value: 7500 }]), // 75.00 C
+      0,
+      t0
+    );
+
+    const snapshot = summary.snapshot({ received: 2, invalid: 0 }, t0);
+    expect(snapshot.devices.find((d) => d.deviceId === 1)?.temperatureAnomalous).toBe(false);
+    expect(snapshot.devices.find((d) => d.deviceId === 2)?.temperatureAnomalous).toBe(true);
+  });
+
   it('cumule les pertes de sequence remontees par le sequenceur', () => {
-    const summary = new Summary(2000);
+    const summary = new Summary(2000, ANOMALY_THRESHOLD_C);
     summary.recordAcceptedFrame(telemetryFrame(1, 1, []), 0, 0);
     summary.recordAcceptedFrame(telemetryFrame(1, 5, []), 3, 10); // 3 trames manquantes
 
@@ -81,7 +104,7 @@ describe('Summary', () => {
   });
 
   it('suit chaque appareil independamment', () => {
-    const summary = new Summary(2000);
+    const summary = new Summary(2000, ANOMALY_THRESHOLD_C);
     summary.recordAcceptedFrame(telemetryFrame(1, 1, [{ metricId: MetricId.TEMPERATURE, value: 2000 }]), 0, 0);
     summary.recordAcceptedFrame(telemetryFrame(2, 1, [{ metricId: MetricId.TEMPERATURE, value: 5000 }]), 0, 0);
 
