@@ -1,5 +1,7 @@
 # PulseHub
 
+Dépôt GitHub : https://github.com/abdulrahman-adam/PulseHub
+
 Hub central de télémétrie temps réel pour une flotte d'équipements événementiels (alimentations, contrôleurs LED, amplis) qui envoient leur état (température, tension, courant) en UDP, selon le protocole **PulseHub v1**.
 
 ## 1. Démarrage local
